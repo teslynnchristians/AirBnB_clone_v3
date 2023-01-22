@@ -1,66 +1,95 @@
 #!/usr/bin/python3
-''' cities.py'''
-
-from flask import jsonify, abort, request
+"""States views"""
+from flask import jsonify, make_response, abort, request
 from api.v1.views import app_views
 from models import storage
-from models.city import City
 from models.state import State
+from models.city import City
 
 
-@app_views.route("/states/<state_id>/cities",
-                 methods=["GET", "POST"],
-                 strict_slashes=False)
-def get_cities(state_id):
-    '''Retrieves the list of all City objects of a State'''
-    state_object = storage.get(State, state_id)
-    if not state_object:
-        abort(404)
+@app_views.route('/states/<id>/cities',
+                 strict_slashes=False,
+                 methods=['GET', 'POST'])
+def view_cities_of_state(id):
+    """Returns a list of all cities of a state, or delete a
+    city if a given id
+    """
+    state = storage.get(State, id)
 
-    if request.method == "GET":
-        cities = [city.to_dict() for city in state_object.cities]
-        return jsonify(cities)
+    if state is None:
+        return abort(404)
 
-    elif request.method == "POST":
-        if not request.is_json:
-            abort(400, description="Not a JSON")
+    if request.method == 'GET':
 
-        if "name" not in request.json:
-            abort(400, description="Missing name")
+        list = []
+        for city in state.cities:
+            list.append(city.to_dict())
+        return jsonify(list)
 
-        city_json = request.get_json()
-        city_obj = City(state_id=state_id, **city_json)
-        storage.new(city_obj)
+    if request.method == 'POST':
+        # Get the attributes from the request
+        data = request.get_json()
+
+        if isinstance(data, dict):
+            pass
+        else:
+            return jsonify({"error": "Not a JSON"}), 400
+
+        if 'name' not in data.keys():
+            return jsonify({'error': 'Missing name'}), 400
+
+        if 'id' in data.keys():
+            data.pop("id")
+        if 'created_at' in data.keys():
+            data.pop("created_at")
+        if 'updated_at' in data.keys():
+            data.pop("updated_at")
+
+        data.update({"state_id": id})
+
+        # Create the object
+        obj = City(**data)
+
+        # Save the object in storage
+        storage.new(obj)
         storage.save()
+        return jsonify(obj.to_dict()), 201
 
-        return jsonify(city_obj.to_dict()), 201
 
+@app_views.route('/cities/<id>',
+                 strict_slashes=False,
+                 methods=['GET', 'DELETE', 'PUT'])
+def view_city_id(id):
+    """Returns or erases a city"""
+    city = storage.get(City, id)
 
-@app_views.route("/cities/<city_id>",
-                 methods=["GET", "DELETE", "PUT"],
-                 strict_slashes=False)
-def get_city_id(city_id):
-    '''Retrieves a City object'''
-    city = storage.get("City", city_id)
     if city is None:
-        abort(404)
+        return abort(404)
 
-    if request.method == "GET":
+    if request.method == 'GET':
         return jsonify(city.to_dict())
 
-    elif request.method == "DELETE":
+    if request.method == 'DELETE':
         storage.delete(city)
         storage.save()
         return jsonify({}), 200
 
-    elif request.method == "PUT":
-        if not request.is_json:
-            abort(400, description="Not a JSON")
+    if request.method == 'PUT':
+        data = request.get_json()
+        if isinstance(data, dict):
+            pass
+        else:
+            return jsonify({"error": "Not a JSON"}), 400
 
-        city_json = request.get_json()
-        not_needed = ["id", "created_at", "updated_at", "state_id"]
-        for attr, attr_value in city_json.items():
-            if attr not in not_needed:
-                setattr(city, attr, attr_value)
-        city.save()
-        return jsonify(city.to_dict()), 200
+        if 'id' in data.keys():
+            data.pop("id")
+        if 'created_at' in data.keys():
+            data.pop("created_at")
+        if 'updated_at' in data.keys():
+            data.pop("updated_at")
+
+        for key, value in data.items():
+            setattr(city, key, value)
+
+        storage.save()
+        return jsonify(city.to_dict())
