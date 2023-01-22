@@ -1,31 +1,31 @@
 #!/usr/bin/python3
-''' index.py '''
-
-from flask import jsonify
+"""Initialize flask functions"""
+from flask import jsonify, make_response
 from api.v1.views import app_views
 from models import storage
 
-classes = {
-    "amenities": "Amenity",
-    "cities": "City",
-    "places": "Place",
-    "reviews": "Review",
-    "states": "State",
-    "users": "User"
-}
+classes = {"Amenity": "amenities",
+           "City": "cities",
+           "Place": "places",
+           "Review": "reviews",
+           "State": "states",
+           "User": "users"}
 
 
-@app_views.route("/status", strict_slashes=False)
-def index():
-    """Endpoint to return status of the api"""
-    return jsonify({"status": "OK"})
+@app_views.route('/status', strict_slashes=False)
+def view_status():
+    """Returns a JSON"""
+    response = jsonify({"status": "OK"})
+    response.headers["Content-Type"] = "application/json"
+    return response
 
 
-@app_views.route("/stats", strict_slashes=False)
-def stats():
-    """An endpoint that retrieves the number of each objects by type"""
-    stats = {}
-    for name, cls in classes.items():
-        stats[name] = storage.count(cls)
-
-    return jsonify(stats)
+@app_views.route('/stats', strict_slashes=False)
+def storage_stats():
+    """Returns a JSON"""
+    dict = {}
+    for cls, name in classes.items():
+        dict.update({name: storage.count(cls)})
+    response = jsonify(dict)
+    response.headers["Content-Type"] = "application/json"
+    return response
